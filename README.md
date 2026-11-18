@@ -38,14 +38,19 @@ These resources provide context for the practice scenarios. The database structu
 
 ## Project Structure
 
-- `README.md` - Introduces the project, its purpose, development approach, and scope.
-- `database/schema.sql` - Creates the database schema, tables, and relationships.
-- `database/seed_1_orgs_projects.sql` - Loads organization and project records.
-- `database/seed_2_usage_invoices.sql` - Loads usage and invoice records.
-- `database/seed_3_payments_events.sql` - Loads payment and billing event records.
-- `database/seed_4_support_queue.sql` - Loads support tickets and related records.
-- `support_queue.md` - Describes the fictional customer support scenarios.
-- `investigations/` - Contains documented investigations of selected support cases.
+The repository is organised into two main folders:
+
+**`database/`** – Contains the PostgreSQL database structure and fictional customer and billing records used in the simulation.
+
+- `billing_database_structure.sql` – Defines the database tables, relationships and constraints.
+- `01_customers_and_projects.sql` – Contains sample organisations, users and projects.
+- `02_usage_and_invoices.sql` – Contains customer usage records and invoice information.
+- `03_payments_and_billing_activity.sql` – Contains payment records and billing events.
+- `04_support_cases_and_restrictions.sql` – Contains customer support records and service restrictions.
+
+**`support/`** – Contains the fictional customer cases used to practise billing investigations.
+
+- `billing_support_case_scenarios.md` – Describes customer-reported issues and the supporting information available for investigation.
 
 ## Skills Practised
 
@@ -66,6 +71,6 @@ Some billing behaviours and investigation rules are simplified for practice. The
 
 ## Supabase Product Familiarisation
 
-Alongside the PostgreSQL billing simulation, this project includes familiarization with the actual Supabase customer dashboard. The goal is to understand the customer-facing billing and project-management experience and connect it to the billing investigation scenarios developed in the simulation.
+Alongside the PostgreSQL billing simulation, I am exploring the actual Supabase customer dashboard to understand the billing and project-management experience from a customer's perspective. This familiarisation will help connect the fictional investigation scenarios to the product experience customers encounter.
 
 The live Supabase project will remain separate from the simulation database. No fictional customer records or billing data will be uploaded to it.
