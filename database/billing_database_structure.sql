@@ -1,5 +1,5 @@
 -- =====================================================================
-/*
+/* 
 Supabase Billing Support Simulation [SIM]
 Database Schema
 PostgreSQL 18
@@ -14,7 +14,7 @@ The database uses fictional organisations, users, projects, subscriptions, usage
 
 [SIM] This project does not reproduce Supabase's private production database or internal billing infrastructure.
 
-Billing calculations are investigated through SQL queries rather than enforced through database constraints.
+Billing calculations are investigated through SQL queries rather than enforced through database constraints. 
 This allows me to identify and investigate discrepancies between related records.
  */
 
@@ -49,7 +49,7 @@ CREATE TABLE organizations (
   org_id              text        PRIMARY KEY,
   name                text        NOT NULL,
   created_at          timestamptz NOT NULL,
-  billing_anchor_day  smallint    NOT NULL CHECK (billing_anchor_day BETWEEN 1 AND 31),
+  billing_anchor_day  smallint    NOT NULL CHECK (billing_anchor_day BETWEEN 1 AND 31),	
   deleted_at          timestamptz 		-- That gives us a way to distinguish an organisation with no recorded deletion from one with a deletion timestamp. It does not physically remove the organisation.
 );
 
@@ -168,7 +168,7 @@ CREATE TABLE projects (
 - quota_overage: Only usage above the included quota is billable.
 - hourly_full_usage: Our label for items billed on full hourly usage.
 
-[SIM] spend_cap_covered records whether an item is eligible for Pro Plan Spend Cap protection, based on Supabase's documented coverage rules.
+[SIM] spend_cap_covered records whether an item is eligible for Pro Plan Spend Cap protection, based on Supabase's documented coverage rules. 
 The organisation's Spend Cap setting is stored separately in subscriptions.spend_cap_enabled.
 
 [SIM] plan_fees stores base monthly subscription fees. Enterprise pricing is custom [DOC].
@@ -213,13 +213,9 @@ CREATE TABLE usage_item_prices (
 
 /*
 [SIM] Records the history of add-ons and Compute configurations assigned to each project, including when each configuration starts and ends.
-
 addon_type references an item in usage_items, such as compute, ipv4, custom_domain or pitr.
-
 variant identifies the configuration where applicable, such as Compute size or PITR retention period. It is blank when no variant applies.
-
 [SIM] Usage can be investigated against these configuration periods, but the database does not automatically calculate usage from them.
-
 Compute size changes are represented by closing the previous period and opening a new one.
 */
 
@@ -235,12 +231,9 @@ CREATE TABLE project_addons (
 
 /*
 [SIM] Stores platform-reported usage by billing cycle, organisation, project where applicable, and usage item.
-
 Organisation-wide usage has a NULL project_ref.
 Hourly usage items are recorded in hours.
-
 [SIM] Each combination of billing cycle, project, usage item and variant can appear only once.
-
 [DOC] Usage quotas and billing scope vary by item. Some usage is aggregated across an organisation, while other limits apply per project.
 */
 CREATE TABLE usage_records (
@@ -254,24 +247,25 @@ CREATE TABLE usage_records (
   recorded_at      timestamptz    NOT NULL
 );
 CREATE UNIQUE INDEX usage_records_uniq
-  ON usage_records (cycle_id, COALESCE(project_ref, ''), usage_item, variant);
+  ON usage_records (cycle_id, COALESCE(project_ref, ''), usage_item, variant); -- This index ensures that, within a billing cycle, we don't accidentally create multiple records for the same project (or organisation-wide usage), usage item and variant.
 
 -- ---------------------------------------------------------------------
 -- INVOICES
 -- ---------------------------------------------------------------------
+/*
+[SIM] Each row represents an issued invoice for an organisation.
 
--- One invoice per issue event.
--- [DOC] An invoice issued at a cycle reset mixes fixed fees for the
--- current cycle (fixed_fee_cycle_id) with usage fees for the previous
--- cycle (usage_cycle_id).
--- [SIM] status vocabulary, invoice_kind and tax_treatment values are
--- simulation labels; Supabase's actual labels are not public.
--- [SIM] Intended arithmetic in the seed data:
---   subtotal  = sum of non-tax line items
---   total_due = subtotal - account_credits_applied + tax_amount
--- [UNKNOWN] whether real tax is computed before or after credits.
--- billing_country_snapshot and tax_id_snapshot hold what was in force at
--- issue time ([DOC]: later detail changes do not rewrite old invoices).
+[DOC] A cycle-reset invoice can include fixed fees for the new billing cycle and usage charges from the previous cycle.
+[SIM] invoice_kind, status and tax_treatment use labels defined for this simulation, not confirmed Supabase internal labels.
+
+[SIM] Invoice calculations in this dataset:
+- subtotal = sum of non-tax invoice line amounts
+- total_due = subtotal - account credits applied + tax
+
+[UNKNOWN] Whether Supabase calculates real tax before or after applying account credits.
+[DOC] Billing country and tax ID snapshots preserve the details recorded when the invoice was issued. Later changes do not rewrite those historical invoice details.
+*/
+
 CREATE TABLE invoices (
   invoice_id               text          PRIMARY KEY,
   invoice_number           text          NOT NULL UNIQUE,
@@ -293,12 +287,16 @@ CREATE TABLE invoices (
   billing_country_snapshot char(2),
   tax_id_snapshot          text
 );
+/*
+[SIM] Each row represents one charge, discount or credit on an invoice.
 
--- Invoice lines. Discounts and credits are negative amounts.
--- line_type: fixed_fee | usage | quota_discount | compute_credit | other
--- cycle_id says which cycle the line relates to (current for fixed
--- fees, previous for usage). project_ref and usage_item trace a charge
--- back to a resource.
+[SIM] Discounts and credits are stored as negative amounts. line_type classifies each line using the categories defined for this simulation.
+
+[SIM] cycle_id identifies the billing cycle associated with the line. Fixed fees relate to the current cycle; usage charges relate to the previous cycle.
+
+[SIM] usage_item and project_ref help trace a charge to its associated usage category or project, where applicable.
+*/
+
 CREATE TABLE invoice_line_items (
   line_id      bigint         GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   invoice_id   text           NOT NULL REFERENCES invoices(invoice_id),
@@ -318,8 +316,15 @@ CREATE TABLE invoice_line_items (
 -- PAYMENTS AND CREDITS
 -- ---------------------------------------------------------------------
 
--- [DOC] Credit cards only. Several can be on file; only one is active.
--- A new card must be added before the old one is removed.
+/*
+[DOC] Supabase accepts credit card payments. An organisation can save multiple payment methods, but only one can be active for billing at a time.
+
+[DOC] A new payment method must be added before the existing one can be removed.
+
+[SIM] This table stores the card details used to identify payment methods in the simulation. is_active records which payment method is selected, while removed_at records its
+removal date when applicable.
+*/
+
 CREATE TABLE payment_methods (
   payment_method_id  text        PRIMARY KEY,
   org_id             text        NOT NULL REFERENCES organizations(org_id),
@@ -332,13 +337,17 @@ CREATE TABLE payment_methods (
   removed_at         timestamptz
 );
 
--- Each charge attempt. [DOC] failed charges are retried several times and
--- the customer can trigger a charge via "Pay now".
--- [SIM] failure_code vocabulary: expired_card, card_declined,
--- insufficient_funds, no_payment_method (these mirror the reasons the
--- Billing FAQ lists) plus authentication_required (simulation-only
--- extra). Supabase's real decline-code taxonomy is not public.
--- payment_method_id is NULL when no card was on record.
+/*
+[DOC] Supabase retries failed invoice payments several times. Customers can also manually trigger a payment attempt through the "Pay now" option or the link in the Payment Failure email.
+
+[SIM] Each row records one attempt to collect payment for an invoice, including the attempt number, amount, payment method and result.
+
+[SIM] failure_code uses simplified categories based on the payment failure reasons described in Supabase's Billing FAQ.
+These are not confirmed internal payment-provider error codes. authentication_required is an additional simulation category.
+
+[SIM] payment_method_id is NULL when no payment method is
+associated with the attempt.
+*/
 CREATE TABLE payment_attempts (
   attempt_id         bigint        GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   invoice_id         text          NOT NULL REFERENCES invoices(invoice_id),
@@ -352,10 +361,18 @@ CREATE TABLE payment_attempts (
   failure_message    text
 );
 
--- Credit balance history. [DOC] Credits are used on future invoices
--- before the card is charged; they do not expire; top-ups cannot pay an
--- outstanding invoice; no cash refunds. amount: positive adds credit,
--- negative uses or removes it. balance_after is the running balance.
+/*
+[DOC] Supabase applies available organisation credits to future invoices before charging the payment method.
+
+[DOC] Credits can result from subscription downgrades, prepaid credit top-ups and transfers between organisations. Credits from downgrades and top-ups do not expire.
+
+[DOC] Credit top-ups apply only to future invoices. They cannot be used to pay or adjust outstanding invoices. Unused credits are not refundable.
+
+[SIM] Each row records a change to an organisation's credit balance. Positive amounts add credit; negative amounts use or remove credit. balance_after records the resulting balance.
+
+[SIM] entry_type classifies credit transactions using categories defined for this database. These are simulation labels, not confirmed internal Supabase transaction codes.
+*/
+
 CREATE TABLE credit_ledger (
   entry_id            bigint        GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   org_id              text          NOT NULL REFERENCES organizations(org_id),
@@ -369,12 +386,16 @@ CREATE TABLE credit_ledger (
 );
 
 -- ---------------------------------------------------------------------
--- OPERATIONS
+-- ORGANISATION EVENTS, SERVICE RESTRICTIONS AND SUPPORT TICKETS
 -- ---------------------------------------------------------------------
 
--- Timeline of what happened to an organisation. Start here when
--- investigating. `details` is free-form jsonb whose keys depend on the
--- event_type.
+/*
+[SIM] Records a timeline of events associated with an organisation. I used these records as an investigation starting point when reconstructing account and billing activity.
+[SIM] event_type identifies the recorded event. The allowed event categories are defined by this database.
+[SIM] details stores additional event information in JSONB format. Its contents depend on the event_type and do not follow one fixed structure.
+[SIM] actor_user_id identifies the user associated with an event. A NULL value represents an event recorded as a system action.
+*/
+
 CREATE TABLE organization_events (
   event_id       bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   org_id         text        NOT NULL REFERENCES organizations(org_id),
@@ -389,10 +410,11 @@ CREATE TABLE organization_events (
   details        jsonb       NOT NULL DEFAULT '{}'::jsonb
 );
 
--- Restrictions applied to an organisation. [DOC] Fair Use Policy
--- restrictions can be triggered by exceeded quotas, overdue invoices or
--- an expired card, and are lifted when the cause is fixed.
--- restriction_type vocabulary follows the Fair Use Policy page.
+/*[DOC] Supabase's Fair Use Policy describes circumstances in which service restrictions may apply, including quota limits, overdue invoices and expired payment cards.
+[SIM] Records the reason for a restriction, the type of restriction, when it was applied and when it was lifted.
+[SIM] related_invoice_id links the restriction to an invoice when the restriction is associated with one.
+[UNKNOWN] The exact internal process for applying and lifting restrictions is not represented by this simulation. */
+
 CREATE TABLE service_restrictions (
   restriction_id      bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   org_id              text        NOT NULL REFERENCES organizations(org_id),
@@ -404,13 +426,12 @@ CREATE TABLE service_restrictions (
   CHECK (lifted_at IS NULL OR lifted_at > applied_at)
 );
 
--- The incoming queue: the OPENING message of each ticket, customer text
--- only. There is no category, priority, owner or answer column. Triage is
--- your job.
--- org_id is NULL when the sender could not be tied to an organisation.
--- requester_user_id is NULL when the sender is not a known user. A known
--- user is not necessarily a member of org_id, so check org_members before
--- deciding what you can safely share with them.
+/* [SIM] Stores the opening message of each incoming support ticket.
+This table does not include ticket category, priority, assigned agent or response. Support must assess and triage each ticket.
+org_id is NULL when the organisation has not been identified. 
+requester_user_id is NULL when the sender is not matched to a known user.
+[SIM] A known user is not necessarily a member of the organisation linked to the ticket. Check org_members before sharing organisation or billing information. */
+
 CREATE TABLE support_tickets (
   ticket_id         text        PRIMARY KEY,
   org_id            text        REFERENCES organizations(org_id),
@@ -421,10 +442,10 @@ CREATE TABLE support_tickets (
   body              text        NOT NULL
 );
 
--- Everything after the opening message: customer follow-ups and any
--- earlier replies from support (fictional). seq starts at 1 per ticket.
--- [SIM] Earlier support replies are part of the case file. They may be
--- accurate, incomplete or wrong; verify them like any other claim.
+/* 
+[SIM] Stores all messages sent after the opening message of a ticket, including customer follow-ups and earlier support replies. seq records the message order within each ticket and starts at 1.
+[SIM] Earlier support replies are fictional case history and may be accurate, incomplete or incorrect. Verify their claims against the available billing records and documented policies. */
+
 CREATE TABLE ticket_messages (
   message_id   bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   ticket_id    text        NOT NULL REFERENCES support_tickets(ticket_id),
