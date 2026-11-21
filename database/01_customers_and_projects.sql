@@ -3,9 +3,9 @@
 -- Times are UTC. 'Now' in this simulation is 2026-11-09 12:00 UTC.
 SET search_path = billing_sim, public;
 
--- PART 1: catalogue, people, organisations, plans, cycles, projects, add-on history
+-- PART 1: Customer, pricing, subscription and project records
 
--- Catalogue (reference data from official docs; see Reference Guide section 10)
+-- Usage types and pricing reference data used to calculate customer charges.
 INSERT INTO usage_items (usage_item, display_name, unit, billing_basis, spend_cap_covered, docs_url) VALUES
   ('egress', 'Egress', 'GB', 'quota_overage', true, 'https://supabase.com/docs/guides/platform/manage-your-usage/egress'),
   ('cached_egress', 'Cached Egress', 'GB', 'quota_overage', true, 'https://supabase.com/docs/guides/platform/manage-your-usage/egress'),
@@ -21,12 +21,14 @@ INSERT INTO usage_items (usage_item, display_name, unit, billing_basis, spend_ca
   ('custom_domain', 'Custom Domain Hours', 'hours', 'hourly_full_usage', false, 'https://supabase.com/docs/guides/platform/manage-your-usage/custom-domains'),
   ('pitr', 'Point-in-time Recovery Hours', 'hours', 'hourly_full_usage', false, 'https://supabase.com/docs/guides/platform/manage-your-usage/point-in-time-recovery');
 
+-- Monthly fees for each subscription plan.
 INSERT INTO plan_fees (plan, monthly_fee, source_url) VALUES
   ('free', 0, 'https://supabase.com/pricing.md'),
   ('pro', 25.00, 'https://supabase.com/pricing.md'),
   ('team', 599.00, 'https://supabase.com/pricing.md'),
   ('enterprise', NULL, 'https://supabase.com/pricing.md');
 
+-- Included usage allowances and prices for each billable usage type.
 INSERT INTO usage_item_prices (usage_item, variant, plan, included_quantity, unit_price, source_url) VALUES
   ('egress', '', 'free', 5, NULL, 'https://supabase.com/docs/guides/platform/manage-your-usage/egress'),
   ('egress', '', 'all_paid', 250, 0.09, 'https://supabase.com/docs/guides/platform/manage-your-usage/egress'),
@@ -57,7 +59,7 @@ INSERT INTO usage_item_prices (usage_item, variant, plan, included_quantity, uni
   ('pitr', '14d', 'all_paid', 0, 0.274, 'https://supabase.com/docs/guides/platform/manage-your-usage/point-in-time-recovery'),
   ('pitr', '28d', 'all_paid', 0, 0.55, 'https://supabase.com/docs/guides/platform/manage-your-usage/point-in-time-recovery');
 
--- People
+-- Individual users associated with the customer accounts
 INSERT INTO users (user_id, email, full_name, country_code, created_at) VALUES
   ('u_amani', 'amani.otieno@maramettrics.example', 'Amani Otieno', 'KE', '2025-01-15 10:00:00+00'),
   ('u_kofi', 'kofi.mutua@maramettrics.example', 'Kofi Mutua', 'KE', '2025-01-15 10:00:00+00'),
@@ -78,7 +80,7 @@ INSERT INTO users (user_id, email, full_name, country_code, created_at) VALUES
   ('u_oskar', 'oskar.lindqvist@lagomlabs.example', 'Oskar Lindqvist', 'SE', '2025-01-15 10:00:00+00'),
   ('u_maja', 'maja.berg@lagomlabs.example', 'Maja Berg', 'SE', '2025-01-15 10:00:00+00');
 
--- Organisations
+-- The 12 customer organisations in our simulation
 INSERT INTO organizations (org_id, name, created_at, billing_anchor_day) VALUES
   ('org_mara', 'Mara Metrics Ltd', '2025-02-05 08:00:00+00', 5),
   ('org_loom', 'Lumen Loom Studio (Pty) Ltd', '2026-02-03 10:30:00+00', 3),
@@ -93,6 +95,7 @@ INSERT INTO organizations (org_id, name, created_at, billing_anchor_day) VALUES
   ('org_saffron', 'Saffron Apps', '2026-03-17 09:45:00+00', 17),
   ('org_lagom', 'Lagom Labs AB', '2025-10-22 10:30:00+00', 22);
 
+-- The people belonging to each organisation, their roles and membership dates.
 INSERT INTO org_members (org_id, user_id, role, added_at, removed_at) VALUES
   ('org_mara', 'u_amani', 'owner', '2025-02-05 08:00:00+00', NULL),
   ('org_mara', 'u_kofi', 'developer', '2025-03-01 09:00:00+00', NULL),
@@ -116,6 +119,7 @@ INSERT INTO org_members (org_id, user_id, role, added_at, removed_at) VALUES
   ('org_lagom', 'u_oskar', 'owner', '2025-10-22 10:30:00+00', NULL),
   ('org_lagom', 'u_maja', 'developer', '2025-11-01 09:00:00+00', NULL);
 
+-- Historical billing contact, company, address and tax details for each organisation.
 INSERT INTO billing_details_history (org_id, billing_email, company_name, address_line, city, postal_code, address_country, tax_id_type, tax_id, valid_from, valid_to) VALUES
   ('org_mara', 'billing@maramettrics.example', 'Mara Metrics Ltd', '14 Riverside Lane', 'Nairobi', '00100', 'KE', NULL, NULL, '2025-02-05 08:00:00+00', NULL),
   ('org_loom', 'finance@lumenloom.example', 'Lumen Loom Studio (Pty) Ltd', '7 Long Street', 'Cape Town', '8001', 'ZA', NULL, NULL, '2026-02-03 10:30:00+00', NULL),
@@ -132,6 +136,7 @@ INSERT INTO billing_details_history (org_id, billing_email, company_name, addres
   ('org_saffron', 'hana.farouk@saffronapps.example', 'Saffron Apps', '9 Tahrir Square', 'Cairo', '11511', 'EG', NULL, NULL, '2026-03-17 09:45:00+00', NULL),
   ('org_lagom', 'oskar.lindqvist@lagomlabs.example', 'Lagom Labs AB', 'Kungsgatan 3', 'Gothenburg', '41105', 'SE', NULL, NULL, '2025-10-22 10:30:00+00', NULL);
 
+-- Each organisation's plan and Spend Cap history, including changes over time.
 INSERT INTO subscriptions (subscription_id, org_id, plan, spend_cap_enabled, started_at, ended_at) VALUES
   ('sub_mara_0', 'org_mara', 'free', NULL, '2025-02-05 08:00:00+00', '2025-04-05 00:00:00+00'),
   ('sub_mara_1', 'org_mara', 'pro', true, '2025-04-05 00:00:00+00', NULL),
@@ -152,6 +157,7 @@ INSERT INTO subscriptions (subscription_id, org_id, plan, spend_cap_enabled, sta
   ('sub_saffron_1', 'org_saffron', 'pro', true, '2026-06-17 00:00:00+00', NULL),
   ('sub_lagom_1', 'org_lagom', 'pro', true, '2025-10-22 10:30:00+00', NULL);
 
+-- The billing periods associated with each organisation and subscription.
 INSERT INTO billing_cycles (cycle_id, org_id, subscription_id, cycle_start, cycle_end, ended_reason) VALUES
   ('cyc_mara_0', 'org_mara', 'sub_mara_1', '2026-07-05 00:00:00+00', '2026-08-05 00:00:00+00', 'scheduled_reset'),
   ('cyc_mara_1', 'org_mara', 'sub_mara_1', '2026-08-05 00:00:00+00', '2026-09-05 00:00:00+00', 'scheduled_reset'),
@@ -204,6 +210,7 @@ INSERT INTO billing_cycles (cycle_id, org_id, subscription_id, cycle_start, cycl
   ('cyc_lagom_2', 'org_lagom', 'sub_lagom_1', '2026-09-22 00:00:00+00', '2026-10-22 00:00:00+00', 'scheduled_reset'),
   ('cyc_lagom_3', 'org_lagom', 'sub_lagom_1', '2026-10-22 00:00:00+00', '2026-11-22 00:00:00+00', NULL);
 
+-- Customer projects, their regions and whether they are active, paused or deleted.
 INSERT INTO projects (project_ref, org_id, name, region, status, created_at, paused_at, deleted_at) VALUES
   ('htsuqfwhskalpspgrhvx', 'org_mara', 'mara-prod', 'eu-central-1', 'active', '2025-03-10 09:00:00+00', NULL, NULL),
   ('pcqnjfxfwjcohwsdkmwy', 'org_mara', 'mara-staging', 'eu-central-1', 'active', '2025-06-01 09:00:00+00', NULL, NULL),
@@ -232,6 +239,7 @@ INSERT INTO projects (project_ref, org_id, name, region, status, created_at, pau
   ('anfjzstbmbxchdvbqmxn', 'org_saffron', 'saffron-old', 'eu-central-1', 'paused', '2026-04-01 09:00:00+00', '2026-09-25 09:10:00+00', NULL),
   ('crinidpqqwfgyarctlbs', 'org_lagom', 'lagom-app', 'eu-north-1', 'active', '2025-10-22 11:00:00+00', NULL, NULL);
 
+-- The compute sizes and additional services enabled on projects, including when they changed.
 INSERT INTO project_addons (project_ref, addon_type, variant, started_at, ended_at) VALUES
   ('htsuqfwhskalpspgrhvx', 'compute', 'micro', '2025-03-10 09:00:00+00', '2026-09-18 14:20:00+00'),
   ('htsuqfwhskalpspgrhvx', 'compute', 'small', '2026-09-18 14:20:00+00', NULL),
