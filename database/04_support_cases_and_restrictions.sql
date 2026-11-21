@@ -3,6 +3,7 @@
 -- Load after parts 1-3.
 SET search_path = billing_sim, public;
 
+-- Customer support requests covering billing disputes, payments, subscriptions and account questions.
 INSERT INTO support_tickets (ticket_id, org_id, requester_email, requester_user_id, received_at, subject, body) VALUES
   ('TKT-7001', 'org_duret', 'camille.duret@duretstudio.example', 'u_camille', '2026-11-04 19:25:00+00', 'Cancelled my subscription, charged again, no refund - illegal in the EU', $tk$Hello,
 
@@ -98,6 +99,7 @@ Thanks,
 Elin Strand
 Bokforing Nord$tk$);
 
+-- Follow-up conversations between customers and billing support for selected tickets.
 INSERT INTO ticket_messages (ticket_id, seq, sent_at, sender_role, sender_email, body) VALUES
   ('TKT-7001', 1, '2026-11-05 10:02:00+00', 'support', 'billing-support@sim-support.example', $tk$Hello Camille,
 
