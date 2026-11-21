@@ -193,7 +193,7 @@ INSERT INTO billing_cycles (cycle_id, org_id, subscription_id, cycle_start, cycl
   ('cyc_fjord_1', 'org_fjord', 'sub_fjord_1', '2026-08-30 00:00:00+00', '2026-09-30 00:00:00+00', 'scheduled_reset'),
   ('cyc_fjord_2', 'org_fjord', 'sub_fjord_1', '2026-09-30 00:00:00+00', '2026-10-30 00:00:00+00', 'scheduled_reset'),
   ('cyc_fjord_3', 'org_fjord', 'sub_fjord_1', '2026-10-30 00:00:00+00', '2026-11-30 00:00:00+00', NULL),
-  ('cyc_dune_0', 'org_dune', 'sub_dune_1', '2026-07-12 00:00:00+00', '2026-08-12 00:00:00+00', 'scheduled_reset'),
+  ('cyc_dune_0', 'org_dune', 'sub_dune_1', '2026-08-01 09:50:00+00', '2026-08-12 00:00:00+00', 'scheduled_reset'),
   ('cyc_dune_1', 'org_dune', 'sub_dune_1', '2026-08-12 00:00:00+00', '2026-09-12 00:00:00+00', 'scheduled_reset'),
   ('cyc_dune_2', 'org_dune', 'sub_dune_1', '2026-09-12 00:00:00+00', '2026-10-12 00:00:00+00', 'scheduled_reset'),
   ('cyc_dune_3', 'org_dune', 'sub_dune_1', '2026-10-12 00:00:00+00', '2026-11-12 00:00:00+00', NULL),
