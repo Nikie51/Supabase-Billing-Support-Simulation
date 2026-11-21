@@ -3,7 +3,7 @@
 -- Times are UTC. 'Now' in this simulation is 2026-11-09 12:00 UTC.
 SET search_path = billing_sim, public;
 
--- PART 3: payment methods, payment attempts, credits, events, restrictions
+-- Saved payment cards linked to each customer organisation.
 
 INSERT INTO payment_methods (payment_method_id, org_id, brand, last4, exp_month, exp_year, is_active, added_at, removed_at) VALUES
   ('pm_mara_1', 'org_mara', 'visa', '4012', 5, 2028, true, '2025-04-05 00:00:00+00', NULL),
@@ -18,6 +18,7 @@ INSERT INTO payment_methods (payment_method_id, org_id, brand, last4, exp_month,
   ('pm_saffron_1', 'org_saffron', 'visa', '2290', 3, 2029, true, '2026-06-17 00:00:00+00', NULL),
   ('pm_lagom_1', 'org_lagom', 'visa', '1111', 7, 2028, true, '2025-10-22 10:40:00+00', NULL);
 
+-- Payment attempts for customer invoices, including successful and failed charges.
 INSERT INTO payment_attempts (invoice_id, payment_method_id, attempt_number, attempted_at, triggered_by, amount, status, failure_code, failure_message) VALUES
   ('inv_4102', 'pm_mara_1', 1, '2026-08-05 00:06:00+00', 'automatic', 49.09, 'succeeded', NULL, NULL),
   ('inv_4111', 'pm_mara_1', 1, '2026-09-05 00:06:00+00', 'automatic', 49.09, 'succeeded', NULL, NULL),
@@ -56,11 +57,13 @@ INSERT INTO payment_attempts (invoice_id, payment_method_id, attempt_number, att
   ('inv_4116', 'pm_lagom_1', 1, '2026-09-22 00:06:00+00', 'automatic', 25.00, 'succeeded', NULL, NULL),
   ('inv_4127', 'pm_lagom_1', 1, '2026-10-22 00:06:00+00', 'automatic', 25.00, 'succeeded', NULL, NULL);
 
+-- Credits added to or deducted from customer account balances.
 INSERT INTO credit_ledger (org_id, entry_type, amount, balance_after, related_invoice_id, created_at, note) VALUES
   ('org_harlow', 'top_up', 200.00, 200.00, 'inv_4132', '2026-11-06 09:21:00+00', 'Self-serve credit top-up (pre-tax amount credited)'),
   ('org_duret', 'downgrade_proration', 10.50, 10.50, NULL, '2026-10-20 08:41:00+00', 'Unused time on Pro Plan credited on downgrade'),
   ('org_duret', 'applied_to_invoice', -10.50, 0.00, 'inv_4126', '2026-10-20 08:41:00+00', 'Applied to plan change invoice');
 
+-- A history of important account activities, such as plan changes, payment updates and project actions.
 INSERT INTO organization_events (org_id, occurred_at, actor_user_id, event_type, details) VALUES
   ('org_mara', '2025-02-05 08:00:00+00', 'u_amani', 'org_created', '{"plan": "free"}'),
   ('org_mara', '2025-03-10 09:00:00+00', 'u_amani', 'project_created', '{"name": "mara-prod", "project_ref": "htsuqfwhskalpspgrhvx", "region": "eu-central-1"}'),
@@ -143,5 +146,6 @@ INSERT INTO organization_events (org_id, occurred_at, actor_user_id, event_type,
   ('org_lagom', '2025-10-22 10:40:00+00', 'u_oskar', 'payment_method_added', '{"brand": "visa", "last4": "1111", "payment_method_id": "pm_lagom_1"}'),
   ('org_lagom', '2025-10-22 11:00:00+00', 'u_oskar', 'project_created', '{"name": "lagom-app", "project_ref": "crinidpqqwfgyarctlbs", "region": "eu-north-1"}');
 
+-- Service restrictions applied to organisations, including the reason and when they were lifted.
 INSERT INTO service_restrictions (org_id, reason, restriction_type, applied_at, lifted_at, related_invoice_id) VALUES
   ('org_harlow', 'overdue_invoice', 'project_paused', '2026-10-30 16:05:00+00', NULL, 'inv_4123');
