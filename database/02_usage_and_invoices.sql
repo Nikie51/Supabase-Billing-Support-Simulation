@@ -3,8 +3,7 @@
 -- Times are UTC. 'Now' in this simulation is 2026-11-09 12:00 UTC.
 SET search_path = billing_sim, public;
 
--- PART 2: platform-reported usage, invoices, invoice line items
--- Usage rows exist for completed billing cycles only.
+-- Usage recorded for each organisation and project during completed billing cycles.
 
 INSERT INTO usage_records (cycle_id, org_id, project_ref, usage_item, variant, quantity, recorded_at) VALUES
   ('cyc_mara_0', 'org_mara', 'htsuqfwhskalpspgrhvx', 'compute', 'micro', 744, '2026-08-05 00:02:00+00'),
@@ -306,6 +305,7 @@ INSERT INTO usage_records (cycle_id, org_id, project_ref, usage_item, variant, q
   ('cyc_lagom_2', 'org_lagom', 'crinidpqqwfgyarctlbs', 'egress', '', 22.5, '2026-10-22 00:02:00+00'),
   ('cyc_lagom_2', 'org_lagom', 'crinidpqqwfgyarctlbs', 'storage_size', '', 3.3, '2026-10-22 00:02:00+00');
 
+-- Customer invoices showing billed amounts, credits, tax, payment status and billing details at the time of issue.
 INSERT INTO invoices (invoice_id, invoice_number, org_id, invoice_kind, fixed_fee_cycle_id, usage_cycle_id, issued_at, status, currency, subtotal, account_credits_applied, tax_treatment, tax_rate, tax_amount, total_due, paid_at, billing_country_snapshot, tax_id_snapshot) VALUES
   ('inv_4101', 'INV-2026-04101', 'org_loom', 'cycle_reset', 'cyc_loom_1', 'cyc_loom_0', '2026-08-03 00:05:00+00', 'paid', 'USD', 35.00, 0, 'none', 0, 0.00, 35.00, '2026-08-03 00:06:00+00', 'ZA', NULL),
   ('inv_4102', 'INV-2026-04102', 'org_mara', 'cycle_reset', 'cyc_mara_1', 'cyc_mara_0', '2026-08-05 00:05:00+00', 'paid', 'USD', 49.09, 0, 'none', 0, 0.00, 49.09, '2026-08-05 00:06:00+00', 'KE', NULL),
@@ -341,6 +341,7 @@ INSERT INTO invoices (invoice_id, invoice_number, org_id, invoice_kind, fixed_fe
   ('inv_4132', 'INV-2026-04132', 'org_harlow', 'credit_top_up', NULL, NULL, '2026-11-06 09:21:00+00', 'paid', 'USD', 200.00, 0, 'standard', 0.20, 40.00, 240.00, '2026-11-06 09:22:00+00', 'GB', NULL),
   ('inv_4133', 'INV-2026-04133', 'org_meridian', 'cycle_reset', 'cyc_meridian_4', 'cyc_meridian_3', '2026-11-08 00:05:00+00', 'paid', 'USD', 35.00, 0, 'none', 0, 0.00, 35.00, '2026-11-08 00:06:00+00', 'AE', NULL);
 
+-- Individual subscription charges, usage charges, discounts and credits making up each invoice.
 INSERT INTO invoice_line_items (invoice_id, line_type, cycle_id, usage_item, variant, project_ref, description, quantity, unit, unit_price, amount) VALUES
   ('inv_4101', 'fixed_fee', 'cyc_loom_1', NULL, '', NULL, 'Pro Plan', 1, 'plan', 25.00, 25.00),
   ('inv_4101', 'usage', 'cyc_loom_0', 'compute', 'micro', 'rpujvfsjaiulqkwhcpby', 'Compute Hours Micro - loom-app', 744, 'hours', 0.01344, 10.00),
